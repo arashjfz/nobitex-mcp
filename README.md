@@ -269,6 +269,23 @@ A safe first session using paper mode (`NOBITEX_DRY_RUN=true`):
 All monetary values (`amount`, `price`, `stop_price`, `collateral`, `leverage`) are
 **strings** to preserve decimal precision.
 
+### Run the included demo
+
+`examples/agent_demo.py` drives the MCP server through a complete agent loop.
+
+```bash
+# Paper mode: live prices, simulated balances, no real orders
+uv run python examples/agent_demo.py
+
+# Live read-only: real credentials, verifies reads and the trade guard
+NOBITEX_PUBLIC_KEY=... NOBITEX_PRIVATE_KEY=... \
+  uv run python examples/agent_demo.py --mode readonly
+```
+
+Paper output: orderbook → market buy → two limit orders → list → cancel → trades →
+balances → reset. Read-only output: profile, wallets, open orders, positions,
+transactions, and a blocked `place_spot_order`.
+
 ---
 
 ## Extra endpoints (escape hatch)
@@ -349,6 +366,9 @@ src/nobitex_mcp/
 ├── paper.py     # in-memory paper broker for NOBITEX_DRY_RUN=true
 ├── server.py    # 80 MCP tools + entry point
 └── __main__.py  # python -m nobitex_mcp
+
+examples/
+└── agent_demo.py  # paper + live read-only agent loop
 ```
 
 The client is transport-agnostic and can be reused directly:
