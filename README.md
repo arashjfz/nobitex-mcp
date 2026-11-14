@@ -384,9 +384,29 @@ with NobitexClient(base_url="https://testnetapiv2.nobitex.ir") as client:
 
 ## Disclaimer
 
-This software is provided as-is. Trading cryptocurrency carries risk. You are responsible
-for every order, transfer, and withdrawal made with your credentials. Always test on the
-testnet first.
+This software is provided **"as is"**, without warranty of any kind, express or implied,
+including but not limited to the warranties of merchantability, fitness for a particular
+purpose, and non-infringement.
+
+**Use at your own risk.** Cryptocurrency trading involves substantial risk and you can
+lose some or all of your funds. Nothing in this project is financial, investment, or
+trading advice.
+
+The author and contributors are **not responsible or liable** for any loss, damage, missed
+profit, API misuse, account restriction, or other harm arising from the use of this
+software, whether caused by bugs, incorrect data, network failures, exchange behavior, or
+user error. You are solely responsible for every order, transfer, withdrawal, and API key
+used with this server.
+
+Always start in paper mode (`NOBITEX_DRY_RUN=true`) or on the exchange testnet, use
+read-only or IP-restricted API keys where possible, and never trade more than you can
+afford to lose.
+
+This project is not affiliated with or endorsed by Nobitex.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 
 *Built from the official Nobitex API documentation (<https://apidocs.nobitex.ir>) and the
 FAQ test-environment details (<https://apidocs.nobitex.ir/faq>).*
