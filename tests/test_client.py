@@ -139,6 +139,21 @@ def test_path_params_and_totp_header():
     assert request.headers["X-TOTP"] == "123456"
 
 
+def test_token_only_endpoint_with_key_gives_actionable_error():
+    private_key = Ed25519PrivateKey.generate()
+    seed_b64 = base64.urlsafe_b64encode(private_key.private_bytes_raw()).decode()
+    public_b64 = base64.urlsafe_b64encode(private_key.public_key().public_bytes_raw()).decode()
+
+    def handler(request):
+        return httpx.Response(401, json={"status": "failed", "code": "Unauthorized"})
+
+    client = make_client(handler, public_key=public_b64, private_key=seed_b64, auth_mode="key")
+    with pytest.raises(NobitexAPIError) as exc:
+        client.get("/apikeys/list")
+    assert exc.value.code == "TokenAuthRequired"
+    assert "user token" in str(exc.value)
+
+
 def test_network_error_is_wrapped():
     def handler(request):
         raise httpx.ConnectError("boom")

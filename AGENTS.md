@@ -32,6 +32,9 @@ uv run nobitex-mcp                  # stdio server
 - Some read operations are POST (`/users/wallets/list`, `/market/orders/status`, portfolio, etc.).
 - OHLC (`/market/udf/history`) uses UDF keys (`s`, `t`, `o`, `h`, `l`, `c`, `v`), not `status`.
 - Requests must originate from an Iranian IP.
+- API keys work on most read endpoints (verified live against mainnet). These paths are
+  token-only: `/apikeys/*`, `/security/anti-phishing`, `/users/login-attempts`,
+  `/users/referral/*`, `/security/validate-address-network`, `/auth/logout`.
 - Nobitex support says the public testnet is currently **disabled**. Use paper mode
   (`NOBITEX_DRY_RUN=true`, `src/nobitex_mcp/paper.py`) for agent testing; it simulates
   account/trading calls in memory while fetching real public market data.

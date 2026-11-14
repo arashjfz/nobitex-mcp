@@ -966,6 +966,7 @@ def nobitex_validate_address_network(network: str, address: str, tag: str | None
         network: Network name, e.g. "BSC".
         address: Destination wallet address.
         tag: Optional tag/memo.
+\n\n    Requires a user token; Nobitex does not accept API-key auth for this endpoint.
     """
     return _call(
         "GET",
@@ -1088,7 +1089,8 @@ def nobitex_deactivate_whitelist(otp_code: str, tfa_code: str) -> Any:
 
 @mcp.tool(structured_output=False)
 def nobitex_get_login_attempts() -> Any:
-    """Get the user's login attempt history."""
+    """Get the user's login attempt history.\n\n    Requires a user token; Nobitex does not accept API-key auth for this endpoint.
+    """
     return _call("POST", "/users/login-attempts", body={})
 
 
@@ -1106,7 +1108,8 @@ def nobitex_activate_emergency_cancel() -> Any:
 
 @mcp.tool(structured_output=False)
 def nobitex_get_anti_phishing() -> Any:
-    """Get the account anti-phishing code."""
+    """Get the account anti-phishing code.\n\n    Requires a user token; Nobitex does not accept API-key auth for this endpoint.
+    """
     return _call("GET", "/security/anti-phishing")
 
 
@@ -1117,6 +1120,7 @@ def nobitex_set_anti_phishing(code: str, otp_code: str) -> Any:
     Args:
         code: New anti-phishing code.
         otp_code: One-time code sent to the user.
+\n\n    Requires a user token; Nobitex does not accept API-key auth for this endpoint.
     """
     return _call("POST", "/security/anti-phishing", body={"code": code, "otpCode": otp_code})
 
@@ -1128,7 +1132,8 @@ def nobitex_set_anti_phishing(code: str, otp_code: str) -> Any:
 
 @mcp.tool(structured_output=False)
 def nobitex_list_referral_links() -> Any:
-    """List the user's referral links."""
+    """List the user's referral links.\n\n    Requires a user token; Nobitex does not accept API-key auth for this endpoint.
+    """
     return _call("POST", "/users/referral/links-list", body={})
 
 
@@ -1139,6 +1144,7 @@ def nobitex_create_referral_link(friend_share: int | None = None, agenda: str | 
     Args:
         friend_share: Commission share granted to the invited friend.
         agenda: Referral program/scenario identifier.
+\n\n    Requires a user token; Nobitex does not accept API-key auth for this endpoint.
     """
     return _call(
         "POST", "/users/referral/links-add", body=_clean({"friendShare": friend_share, "agenda": agenda})
@@ -1147,13 +1153,15 @@ def nobitex_create_referral_link(friend_share: int | None = None, agenda: str | 
 
 @mcp.tool(structured_output=False)
 def nobitex_get_referral_status() -> Any:
-    """Get the user's referrer status."""
+    """Get the user's referrer status.\n\n    Requires a user token; Nobitex does not accept API-key auth for this endpoint.
+    """
     return _call("POST", "/users/referral/referral-status", body={})
 
 
 @mcp.tool(structured_output=False)
 def nobitex_set_referrer(referrer_code: str) -> Any:
-    """Register a referrer code for the user."""
+    """Register a referrer code for the user.\n\n    Requires a user token; Nobitex does not accept API-key auth for this endpoint.
+    """
     return _call("POST", "/users/referral/set-referrer", body={"referrerCode": referrer_code})
 
 
@@ -1236,7 +1244,8 @@ def nobitex_legacy_login(
 
 @mcp.tool(structured_output=False)
 def nobitex_logout() -> Any:
-    """Log out the current user token."""
+    """Log out the current user token.\n\n    Requires a user token; Nobitex does not accept API-key auth for this endpoint.
+    """
     return _call("POST", "/auth/logout/", body={})
 
 
@@ -1263,6 +1272,7 @@ def nobitex_create_api_key(
         ip_whitelist: Optional list of allowed IPv4/IPv6 addresses (max 15).
         expiration_date: Optional ISO-8601 expiry in the future.
         totp: TOTP two-factor code (required, sent as X-TOTP).
+\n\n    Requires a user token; Nobitex does not accept API-key auth for this endpoint.
     """
     body = _clean(
         {
@@ -1278,7 +1288,8 @@ def nobitex_create_api_key(
 
 @mcp.tool(structured_output=False)
 def nobitex_list_api_keys() -> Any:
-    """List the user's API keys."""
+    """List the user's API keys.\n\n    Requires a user token; Nobitex does not accept API-key auth for this endpoint.
+    """
     return _call("GET", "/apikeys/list")
 
 
@@ -1289,6 +1300,7 @@ def nobitex_delete_api_key(public_key: str, totp: str | None = None) -> Any:
     Args:
         public_key: Public key of the API key.
         totp: TOTP two-factor code (required, sent as X-TOTP).
+\n\n    Requires a user token; Nobitex does not accept API-key auth for this endpoint.
     """
     return _call("POST", f"/apikeys/delete/{_q(public_key)}", totp=totp)
 
@@ -1309,6 +1321,7 @@ def nobitex_update_api_key(
         name: New name.
         description: New description.
         ip_whitelist: New IP whitelist (max 15).
+\n\n    Requires a user token; Nobitex does not accept API-key auth for this endpoint.
     """
     body = _clean({"name": name, "description": description, "ipAddressesWhitelist": ip_whitelist})
     return _call("POST", f"/apikeys/update/{_q(public_key)}", body=body, totp=totp)

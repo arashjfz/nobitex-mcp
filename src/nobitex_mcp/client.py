@@ -43,6 +43,17 @@ _READ_ONLY_POST_PATHS = {
 }
 
 
+# Endpoints that Nobitex only accepts user-token auth for (API keys are rejected).
+_TOKEN_ONLY_PREFIXES = (
+    "/apikeys",
+    "/security/anti-phishing",
+    "/users/login-attempts",
+    "/users/referral",
+    "/security/validate-address-network",
+    "/auth/logout",
+)
+
+
 def _scalar_to_query(value: Any) -> str:
     if isinstance(value, bool):
         return "true" if value else "false"
@@ -162,6 +173,11 @@ class NobitexClient:
         )
         return base64.urlsafe_b64encode(private_key.sign(message)).decode("ascii")
 
+    def _resolved_auth_mode(self) -> str | None:
+        if self._auth_mode is not None:
+            return self._auth_mode
+        return "token" if self._token else "key"
+
     def _auth_headers(self, method: str, full_path: str, raw_body: bytes) -> dict[str, str]:
         mode = self._auth_mode
         if mode is None:
@@ -280,6 +296,19 @@ class NobitexClient:
         payload = self._parse_body(response)
 
         if response.status_code >= 400:
+            if (
+                response.status_code == 401
+                and auth
+                and self._resolved_auth_mode() == "key"
+                and path.startswith(_TOKEN_ONLY_PREFIXES)
+            ):
+                raise NobitexAPIError(
+                    "This endpoint requires a user token (Authorization: Token ...). "
+                    "Nobitex does not accept API-key authentication for this path.",
+                    status_code=401,
+                    code="TokenAuthRequired",
+                    payload=payload,
+                )
             raise self._error_from(payload, response.status_code, path)
         if isinstance(payload, dict) and payload.get("status") == "failed":
             raise self._error_from(payload, response.status_code, path)

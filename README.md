@@ -192,6 +192,15 @@ Headers: `Nobitex-Key`, `Nobitex-Signature`, `Nobitex-Timestamp`.
 > IP. Paper mode only needs public market data, but that data also comes from the mainnet API,
 > so the same network rule applies.
 
+**API-key coverage.** Nobitex accepts API keys on most endpoints, but these paths are
+**token-only** (the server returns `code=TokenAuthRequired` when only a key is configured):
+
+`/apikeys/*`, `/security/anti-phishing`, `/users/login-attempts`, `/users/referral/*`,
+`/security/validate-address-network`, `/auth/logout`.
+
+Other endpoints additionally require the matching key permission (for example `DEPOSIT` for
+deposit-address listing, `ADDRESS_BOOK` for address-book writes, `TRADE` for orders).
+
 ---
 
 ## Client configuration
