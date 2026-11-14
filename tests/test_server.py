@@ -76,11 +76,14 @@ def test_tool_surface_covers_all_api_sections():
         # websocket
         "nobitex_get_websocket_token",
         "nobitex_get_websocket_info",
+        # paper trading
+        "nobitex_paper_reset",
+        "nobitex_paper_match_open_orders",
         # escape hatch
         "nobitex_request",
     }
     assert expected <= names
-    assert len(names) >= 75
+    assert len(names) >= 80
 
 
 def test_server_info_reports_testnet(monkeypatch):

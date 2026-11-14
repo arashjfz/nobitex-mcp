@@ -41,6 +41,7 @@ class Settings:
     transport: str
     host: str
     port: int
+    dry_run: bool = False
 
     @property
     def is_testnet(self) -> bool:
@@ -74,4 +75,5 @@ def load_settings() -> Settings:
         transport=(os.getenv("NOBITEX_TRANSPORT") or "stdio").strip().lower(),
         host=(os.getenv("NOBITEX_HOST") or "127.0.0.1").strip(),
         port=int(os.getenv("NOBITEX_PORT") or "8000"),
+        dry_run=_as_bool(os.getenv("NOBITEX_DRY_RUN")),
     )

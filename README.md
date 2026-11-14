@@ -3,8 +3,13 @@
 A complete [Model Context Protocol](https://modelcontextprotocol.io) server for the
 [Nobitex](https://nobitex.ir) cryptocurrency exchange, built from the official API
 documentation at <https://apidocs.nobitex.ir>. It supports **mainnet and testnet**,
-both authentication schemes (user token and Ed25519 API key), and **78 tools** covering
+both authentication schemes (user token and Ed25519 API key), and **80 tools** covering
 every documented API section.
+
+> **Testnet status:** Nobitex support has confirmed that the public testnet
+> (`https://testnetapiv2.nobitex.ir`) is **currently disabled**. The server still supports it
+> via `NOBITEX_ENV=testnet` and will work when it is re-enabled. Until then, use the built-in
+> **paper-trading mode** (`NOBITEX_DRY_RUN=true`) described below to test your agent safely.
 
 ---
 
@@ -47,6 +52,7 @@ the 15 official OpenAPI specifications plus the documented paths in the API-key 
 | API keys | `create_api_key`, `list_api_keys`, `delete_api_key`, `update_api_key` |
 | Portfolio / P&L | `get_last_week_daily_profit`, `get_last_week_daily_total_profit`, `get_last_month_total_profit` |
 | Websocket | `get_websocket_token`, `get_websocket_info` |
+| Paper trading | `paper_reset`, `paper_match_open_orders` |
 | Escape hatch | `request` — call any documented path with correct signing |
 
 All tools are prefixed with `nobitex_` (e.g. `nobitex_place_spot_order`). The full list is
@@ -87,12 +93,41 @@ Copy `.env.example` to `.env` and fill it in. Environment variables always win o
 | `NOBITEX_PRIVATE_KEY` | — | Ed25519 private key (URL-safe base64) |
 | `NOBITEX_AUTH_MODE` | auto | `token` or `key` when both credential types are set |
 | `NOBITEX_READ_ONLY` | `false` | Block all mutating operations when `true` |
+| `NOBITEX_DRY_RUN` | `false` | Paper-trading mode: simulate account/trading calls locally |
+| `NOBITEX_PAPER_BALANCES` | `{"usdt":"10000","rls":"100000000","btc":"0.5","eth":"5"}` | Starting paper balances (JSON) |
+| `NOBITEX_PAPER_FEE_RATE` | `0.001` | Paper trading fee rate |
 | `NOBITEX_TRANSPORT` | `stdio` | `stdio`, `sse`, or `streamable-http` |
 | `NOBITEX_HOST` / `NOBITEX_PORT` | `127.0.0.1` / `8000` | HTTP transport binding |
 | `NOBITEX_USER_AGENT` | `TraderBot/nobitex-mcp-1.0.0` | Sent on every request |
 | `NOBITEX_TIMEOUT` | `30` | HTTP timeout in seconds |
 
-### Testnet (recommended for agent testing)
+### Paper trading (recommended while testnet is disabled)
+
+Nobitex support confirmed the testnet is currently down. `NOBITEX_DRY_RUN=true` makes the
+server simulate every account and trading call in memory while still fetching **real public
+market data** for prices:
+
+```bash
+NOBITEX_DRY_RUN=true
+NOBITEX_ENV=mainnet          # only public orderbook/stats are fetched
+NOBITEX_PAPER_BALANCES={"usdt":"10000","rls":"100000000","btc":"0.5"}
+```
+
+What is simulated:
+
+- spot order placement (market fills at the live best bid/ask; limit fills when crossing)
+- order status, list, cancel, bulk cancel
+- trades, wallets/balances, profile, limitations, transactions, portfolio
+- spot ↔ margin transfers, margin order/position/close/collateral
+- paper helpers: `nobitex_paper_reset`, `nobitex_paper_match_open_orders`
+
+What is **not** simulated (returns `PaperModeUnsupported`): withdrawals, address book,
+API keys, security, referral, authentication. Public market data always goes to the live API.
+
+Every paper response includes `"paper": true`, so your agent (and you) can tell it apart from
+a live response. No order or withdrawal ever leaves the machine.
+
+### Testnet (when re-enabled)
 
 The official FAQ lists the test environments:
 
@@ -100,15 +135,14 @@ The official FAQ lists the test environments:
 - API: `https://testnetapiv2.nobitex.ir`
 - Websocket: `wss://ws.testnet.nobitex.ir`
 
-Set:
+When Nobitex re-enables the testnet, set:
 
 ```bash
 NOBITEX_ENV=testnet
 ```
 
-Every tool then targets the testnet. Public market-data tools need no credentials, so you
-can validate the agent end-to-end without risking funds. Testnet credentials are created
-from the testnet website, not the mainnet panel.
+Every tool then targets `https://testnetapiv2.nobitex.ir`. Public market-data tools need no
+credentials. Testnet credentials are created from the testnet website, not the mainnet panel.
 
 Verify the active environment at any time:
 
@@ -155,7 +189,8 @@ where `full_path` includes the query string and `raw_body` is the exact JSON byt
 Headers: `Nobitex-Key`, `Nobitex-Signature`, `Nobitex-Timestamp`.
 
 > **Iranian IP required.** The FAQ states that API requests must originate from an Iranian
-> IP. The testnet is reachable internationally; mainnet may not be from outside Iran.
+> IP. Paper mode only needs public market data, but that data also comes from the mainnet API,
+> so the same network rule applies.
 
 ---
 
@@ -172,8 +207,8 @@ Headers: `Nobitex-Key`, `Nobitex-Signature`, `Nobitex-Timestamp`.
       "command": "uv",
       "args": ["--directory", "/absolute/path/to/nobitex-mcp", "run", "nobitex-mcp"],
       "env": {
-        "NOBITEX_ENV": "testnet",
-        "NOBITEX_TOKEN": "your-token"
+        "NOBITEX_ENV": "mainnet",
+        "NOBITEX_DRY_RUN": "true"
       }
     }
   }
@@ -188,7 +223,8 @@ Headers: `Nobitex-Key`, `Nobitex-Signature`, `Nobitex-Timestamp`.
     "nobitex": {
       "command": "/absolute/path/to/nobitex-mcp/.venv/bin/nobitex-mcp",
       "env": {
-        "NOBITEX_ENV": "testnet",
+        "NOBITEX_ENV": "mainnet",
+        "NOBITEX_DRY_RUN": "true",
         "NOBITEX_PUBLIC_KEY": "...",
         "NOBITEX_PRIVATE_KEY": "...",
         "NOBITEX_AUTH_MODE": "key"
@@ -209,9 +245,9 @@ NOBITEX_TRANSPORT=streamable-http NOBITEX_PORT=8000 uv run nobitex-mcp
 
 ## Agent workflow example
 
-A safe first session against testnet:
+A safe first session using paper mode (`NOBITEX_DRY_RUN=true`):
 
-1. `nobitex_server_info` — confirm `is_testnet: true`.
+1. `nobitex_server_info` — confirm `dry_run: true` and inspect paper balances.
 2. `nobitex_get_system_options` — discover currencies, networks, and limits.
 3. `nobitex_get_market_stats` with `src_currency="btc"`, `dst_currency="usdt"`.
 4. `nobitex_get_orderbook` with `symbol="BTCUSDT"`.
@@ -266,7 +302,9 @@ Pass `"auth": "none"` for public paths when no credentials are configured.
 
 ## Safety
 
-- **Use testnet while developing.** `NOBITEX_ENV=testnet` is the default in `.env.example`.
+- **Use paper mode while developing.** `NOBITEX_DRY_RUN=true` simulates all trading locally
+  and is the safest option while the testnet is disabled.
+- **Use testnet when available.** `NOBITEX_ENV=testnet` targets the official test environment.
 - **`NOBITEX_READ_ONLY=true`** blocks every mutating request (orders, cancels, transfers,
   withdrawals, address-book changes, API-key changes) while leaving read-only POST
   endpoints such as wallet listing and order status working.
@@ -281,13 +319,14 @@ Pass `"auth": "none"` for public paths when no credentials are configured.
 ## Testing
 
 ```bash
-uv run pytest                        # 15 unit tests (signing, auth, errors, read-only, tools)
-NOBITEX_LIVE_TEST=1 uv run pytest    # + 4 live testnet public-endpoint tests
+uv run pytest                        # 24 unit tests (signing, auth, errors, read-only, paper, tools)
+NOBITEX_LIVE_TEST=1 uv run pytest    # + 4 live public-endpoint tests
 ```
 
 The unit tests verify the Ed25519 signature against the documented
-`timestamp + METHOD + full_path + raw_body` construction using a real key pair, and
-exercise the client through `httpx.MockTransport` (no network).
+`timestamp + METHOD + full_path + raw_body` construction using a real key pair, exercise the
+client through `httpx.MockTransport` (no network), and cover the paper broker (fills,
+balances, limits, cancels, transfers, unsupported paths).
 
 ---
 
@@ -298,7 +337,8 @@ src/nobitex_mcp/
 ├── config.py    # env/.env settings, mainnet/testnet base URLs
 ├── errors.py    # NobitexError hierarchy (API, auth, read-only)
 ├── client.py    # HTTP client, Token + Ed25519 auth, signing, read-only guard
-├── server.py    # 78 MCP tools + entry point
+├── paper.py     # in-memory paper broker for NOBITEX_DRY_RUN=true
+├── server.py    # 80 MCP tools + entry point
 └── __main__.py  # python -m nobitex_mcp
 ```
 

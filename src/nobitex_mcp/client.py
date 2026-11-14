@@ -6,13 +6,14 @@ import base64
 import json
 import time
 from typing import Any, Mapping
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import httpx
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from .config import MAINNET_BASE_URL, TESTNET_BASE_URL, Settings, load_settings
-from .errors import NobitexAPIError, NobitexAuthError, NobitexReadOnlyError
+from .errors import NobitexAPIError, NobitexAuthError, NobitexError, NobitexReadOnlyError
+from .paper import PaperBroker, PaperError
 
 __all__ = [
     "MAINNET_BASE_URL",
@@ -82,6 +83,7 @@ class NobitexClient:
         private_key: str | None = None,
         auth_mode: str | None = None,
         read_only: bool | None = None,
+        dry_run: bool | None = None,
         user_agent: str | None = None,
         timeout: float | None = None,
         transport: httpx.BaseTransport | None = None,
@@ -89,7 +91,17 @@ class NobitexClient:
         if settings is None:
             if any(
                 v is not None
-                for v in (base_url, token, public_key, private_key, auth_mode, read_only, user_agent, timeout)
+                for v in (
+                    base_url,
+                    token,
+                    public_key,
+                    private_key,
+                    auth_mode,
+                    read_only,
+                    dry_run,
+                    user_agent,
+                    timeout,
+                )
             ):
                 settings = Settings(
                     base_url=(base_url or MAINNET_BASE_URL).rstrip("/"),
@@ -99,6 +111,7 @@ class NobitexClient:
                     private_key=private_key,
                     auth_mode=auth_mode,
                     read_only=bool(read_only),
+                    dry_run=bool(dry_run),
                     user_agent=user_agent or "TraderBot/nobitex-mcp-1.0.0",
                     timeout=timeout or 30.0,
                     transport="stdio",
@@ -111,6 +124,8 @@ class NobitexClient:
         self.settings = settings
         self.base_url = settings.base_url.rstrip("/")
         self.read_only = settings.read_only
+        self.dry_run = settings.dry_run
+        self.paper = PaperBroker() if settings.dry_run else None
         self.user_agent = settings.user_agent
         self._token = settings.token
         self._public_key = settings.public_key
@@ -192,12 +207,42 @@ class NobitexClient:
             raise ValueError("path must start with '/'")
         method = method.upper()
 
+        if self.dry_run and self.paper is not None:
+            try:
+                simulated = self.paper.handle(
+                    method, path, params, body, market_price=self._paper_market_price
+                )
+            except PaperError as exc:
+                raise NobitexAPIError(
+                    exc.message,
+                    status_code=422,
+                    code=exc.code,
+                    payload={"status": "failed", "code": exc.code, "message": exc.message, "paper": True},
+                ) from exc
+            if simulated is not None:
+                return simulated
+            # Public market-data path: fall through to the live API without auth.
+            auth = False
+
         if self.read_only and method != "GET" and path not in _READ_ONLY_POST_PATHS:
             raise NobitexReadOnlyError(
                 f"Blocked mutating request {method} {path}: server is in read-only mode "
                 "(NOBITEX_READ_ONLY=true)."
             )
 
+        return self._send(method, path, params=params, body=body, auth=auth, totp=totp, extra_headers=extra_headers)
+
+    def _send(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: Mapping[str, Any] | None = None,
+        body: Mapping[str, Any] | None = None,
+        auth: bool | str = True,
+        totp: str | None = None,
+        extra_headers: Mapping[str, str] | None = None,
+    ) -> Any:
         query = build_query_string(params)
         full_path = f"{path}?{query}" if query else path
         raw_body = b""
@@ -241,6 +286,32 @@ class NobitexClient:
         if isinstance(payload, dict) and payload.get("s") == "error":
             raise self._error_from(payload, response.status_code, path)
         return payload
+
+    # ----------------------------------------------------------------- paper
+    def _paper_market_price(self, symbol: str, side: str) -> Any:
+        from decimal import Decimal
+
+        try:
+            data = self._send("GET", f"/v3/orderbook/{quote(symbol)}", auth=False)
+        except NobitexError:
+            return None
+        levels = data.get("asks" if side == "ask" else "bids") if isinstance(data, dict) else None
+        if not levels:
+            return None
+        try:
+            return Decimal(str(levels[0][0]))
+        except (TypeError, ValueError, IndexError):
+            return None
+
+    def reset_paper(self) -> None:
+        if self.paper is None:
+            raise NobitexReadOnlyError("Paper mode is not enabled (NOBITEX_DRY_RUN=true)")
+        self.paper.reset()
+
+    def match_paper_orders(self) -> int:
+        if self.paper is None:
+            raise NobitexReadOnlyError("Paper mode is not enabled (NOBITEX_DRY_RUN=true)")
+        return self.paper.match_open_orders()
 
     # ---------------------------------------------------------------- helpers
     @staticmethod

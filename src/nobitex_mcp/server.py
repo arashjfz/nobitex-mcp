@@ -95,6 +95,12 @@ def nobitex_server_info() -> Any:
         "auth_mode": client.settings.auth_mode
         or ("token" if client.settings.token else "key" if client.settings.public_key else None),
         "read_only": client.read_only,
+        "dry_run": client.dry_run,
+        "paper_balances": (
+            {currency: str(balance) for currency, balance in client.paper.spot.items()}
+            if client.paper is not None
+            else None
+        ),
         "user_agent": client.user_agent,
     }
 
@@ -1374,6 +1380,41 @@ def nobitex_get_websocket_info() -> Any:
         "private_channels": ["private-orders", "private-trades"],
         "private_auth": "Call nobitex_get_websocket_token and pass the token to the private channel subscription.",
     }
+
+
+# ===========================================================================
+# Paper trading helpers (NOBITEX_DRY_RUN=true)
+# ===========================================================================
+
+
+@mcp.tool(structured_output=False)
+def nobitex_paper_reset() -> Any:
+    """Reset paper-trading balances, orders, trades and positions.
+
+    Only available when the server runs with NOBITEX_DRY_RUN=true.
+    """
+    client = get_client()
+    if client.paper is None:
+        raise ToolError("Paper mode is not enabled. Set NOBITEX_DRY_RUN=true.")
+    client.reset_paper()
+    return {
+        "status": "ok",
+        "paper": True,
+        "balances": {currency: str(balance) for currency, balance in client.paper.spot.items()},
+    }
+
+
+@mcp.tool(structured_output=False)
+def nobitex_paper_match_open_orders() -> Any:
+    """Re-check open paper limit orders against the live order book and fill crossing ones.
+
+    Only available when the server runs with NOBITEX_DRY_RUN=true.
+    """
+    client = get_client()
+    if client.paper is None:
+        raise ToolError("Paper mode is not enabled. Set NOBITEX_DRY_RUN=true.")
+    filled = client.match_paper_orders()
+    return {"status": "ok", "paper": True, "filled_orders": filled}
 
 
 # ===========================================================================
