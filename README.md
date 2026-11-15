@@ -66,8 +66,16 @@ available at runtime via MCP `tools/list`.
 
 Requires Python 3.10+.
 
+Run directly from GitHub without cloning:
+
 ```bash
-git clone <this-repo> nobitex-mcp
+uvx --from git+https://github.com/arashjfz/nobitex-mcp.git nobitex-mcp
+```
+
+Or install locally:
+
+```bash
+git clone https://github.com/arashjfz/nobitex-mcp nobitex-mcp
 cd nobitex-mcp
 uv sync --extra dev          # or: python -m venv .venv && pip install -e ".[dev]"
 ```
