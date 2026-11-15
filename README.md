@@ -1,5 +1,7 @@
 # Nobitex MCP Server
 
+[![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/arashjfz/nobitex-mcp)
+
 A complete [Model Context Protocol](https://modelcontextprotocol.io) server for the
 [Nobitex](https://nobitex.ir) cryptocurrency exchange, built from the official API
 documentation at <https://apidocs.nobitex.ir>. It supports **mainnet and testnet**,
